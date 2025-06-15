@@ -1,12 +1,14 @@
 package com.example.demo;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.persistence.*;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -15,19 +17,17 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.transaction.TransactionManager;
 import org.springframework.web.bind.annotation.*;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 
 import javax.sql.DataSource;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
 interface BirthdayRepository extends JpaRepository<Birthday, Long> {
-
+	Optional<Birthday> findByName(String name) throws EntityNotFoundException;
+	List<Birthday> findByBirthDate(Date birthDate);
 }
 
 @Entity
@@ -73,6 +73,14 @@ class Birthday {
 class BirthdayNotFoundException extends RuntimeException {
 	BirthdayNotFoundException(Long id) {
 		super("Could not find birthday " + id);
+	}
+
+	BirthdayNotFoundException(String name) {
+		super("Could not find birthdays for " + name);
+	}
+
+	BirthdayNotFoundException(Date birthDate) {
+		super("Could not find birthdays on " + birthDate);
 	}
 }
 
@@ -132,6 +140,18 @@ class BirthdayController {
 		return repository.findById(id)
 				.orElseThrow(() -> new BirthdayNotFoundException(id));
 	}
+
+	@GetMapping("/birthdays/byName/{name}")
+	Birthday byName(@PathVariable String name) {
+		return repository.findByName(name)
+				.orElseThrow(() -> new BirthdayNotFoundException(name));
+	}
+
+	@GetMapping("/birthdays/byBirthDate/{birthDate}")
+	List<Birthday> byName(@PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthDate) {
+		return repository.findByBirthDate(birthDate);
+	}
+
 
 	@PutMapping("/birthdays/{id}")
 	Birthday replaceBirthday(@RequestBody Birthday newBirthday, @PathVariable Long id) {
